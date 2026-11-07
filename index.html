@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3D File Viewer</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; height: 100vh; overflow: hidden;
+    font: 13px/1.4 system-ui, sans-serif;
+    background: #14161a; color: #cfd4dc;
+  }
+  #app { position: fixed; inset: 0; }
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 12px;
+    background: rgba(20,22,26,.9);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid #262a31;
+    z-index: 10;
+  }
+  #hud .title { font-weight: 600; letter-spacing: .3px; }
+  #hud .sep { width: 1px; height: 18px; background: #3a4048; }
+  #hud .spacer { flex: 1; }
+  button, .filebtn, select {
+    padding: 5px 11px; border: 1px solid #3a4048; border-radius: 6px;
+    background: #1e2126; color: #cfd4dc; cursor: pointer; font: inherit;
+  }
+  button:hover, .filebtn:hover, select:hover { background: #2a2e35; }
+  button.active { border-color: #58a6ff; color: #58a6ff; }
+  #fileInput { display: none; }
+  #sectCtl { display: none; align-items: center; gap: 6px; }
+  #sectCtl.show { display: inline-flex; }
+
+  /* docked left sidebar — model tree */
+  #sidebar {
+    position: fixed; left: 0; top: 47px; bottom: 0; width: 230px;
+    background: #17191e; border-right: 1px solid #262a31;
+    display: flex; flex-direction: column; z-index: 5;
+  }
+  #sidebar h3 {
+    margin: 0; padding: 10px 14px 8px;
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .7px; color: #7d8590;
+    border-bottom: 1px solid #22252b;
+  }
+  #tree { flex: 1; overflow-y: auto; padding: 6px 0; }
+  #tree label {
+    display: flex; gap: 8px; align-items: center;
+    padding: 5px 14px; cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #tree label:hover { background: #1e2126; }
+  #tree label input { accent-color: #58a6ff; flex-shrink: 0; }
+  #tree label .swatch {
+    width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
+    border: 1px solid #00000044;
+  }
+  #tree label.hidden-part { opacity: .45; }
+  #tree .empty {
+    padding: 14px; color: #5d636e; font-size: 12px;
+  }
+  #sidebar .foot {
+    padding: 8px 14px; border-top: 1px solid #22252b;
+    color: #5d636e; font-size: 11px;
+  }
+
+  #info {
+    position: fixed; bottom: 10px; left: 242px; z-index: 10;
+    color: #7d8590; pointer-events: none; white-space: pre;
+  }
+  #drop {
+    position: fixed; inset: 0; display: none; z-index: 20;
+    background: rgba(20,22,26,.75);
+    border: 2px dashed #58a6ff; border-radius: 8px; margin: 10px;
+    place-items: center; font-size: 18px; color: #58a6ff;
+  }
+  #drop.show { display: grid; }
+  #status { color: #7d8590; }
+  .err { color: #f47067; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="hud">
+  <span class="title">3D file viewer</span>
+  <label class="filebtn" for="fileInput">Open…</label>
+  <input id="fileInput" type="file" multiple
+         accept=".step,.stp,.iges,.igs,.brep,.stl,.obj,.ply,.3mf,.gltf,.glb">
+  <button id="sampleBtn">Sample</button>
+  <select id="exportSel">
+    <option value="">Export ▾</option>
+    <option value="glb">glTF (.glb)</option>
+    <option value="stl">STL</option>
+    <option value="obj">OBJ</option>
+    <option value="ply">PLY</option>
+  </select>
+  <span class="sep"></span>
+  <button id="measureBtn">Measure</button>
+  <button id="sectBtn">Section</button>
+  <span id="sectCtl">z <input id="sectSlider" type="range" min="0" max="1" step="0.01" value="0.5" style="width:90px"></span>
+  <button id="fitBtn">Fit</button>
+  <select id="upSel" title="Up-axis convention">
+    <option value="z">Z up (CAD)</option>
+    <option value="y">Y up (3D)</option>
+  </select>
+  <span class="sep"></span>
+  <button id="edgeBtn">Edges</button>
+  <button id="wireBtn">Wireframe</button>
+  <button id="gridBtn">Grid</button>
+  <span class="spacer"></span>
+  <button id="shareBtn">Copy link</button>
+  <button id="shotBtn">PNG</button>
+  <span id="status"></span>
+</div>
+<div id="sidebar">
+  <h3>Model tree</h3>
+  <div id="tree"><div class="empty">no model — drop a file or open the sample</div></div>
+  <div class="foot" id="treeFoot"></div>
+</div>
+<div id="info">drop a file anywhere · step/iges/brep · stl/obj/ply/3mf/gltf</div>
+<div id="drop">Drop 3D file</div>
+<script>
+  // Surface JS errors in the status bar instead of a silent blank canvas.
+  const showErr = m => {
+    const el = document.getElementById('status');
+    if (el) { el.textContent = 'error: ' + m; el.className = 'err'; }
+  };
+  addEventListener('error', e => showErr(e.message || e.filename));
+  addEventListener('unhandledrejection', e => showErr(e.reason?.message || String(e.reason)));
+</script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module" src="viewer.js?v=2"></script>
+</body>
+</html>
