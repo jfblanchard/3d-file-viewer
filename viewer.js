@@ -188,7 +188,7 @@ function frameModel() {
 let occt = null;
 async function occtModule() {
   if (!occt) {
-    const mod = await import(`${OCCT_BASE}occt-import-js.js`);
+    const mod = await import(`https://cdn.jsdelivr.net/npm/occt-import-js@${OCCT_VERSION}/+esm`);
     occt = await mod.default({ locateFile: f => OCCT_BASE + f });
   }
   return occt;
@@ -221,6 +221,7 @@ const BREP_EXTS = ['step', 'stp', 'iges', 'igs', 'brep'];
 
 async function loadBytes(name, bytes) {
   const ext = name.split('.').pop().toLowerCase();
+  const stem = name.replace(/\.[^.]+$/, '');
   lastFile = { name, bytes, ext };
   if (bytes.length > BIG_FILE)
     status(`${name}: ${(bytes.length / 1e6).toFixed(0)} MB — over the ~100 MB comfort limit for in-browser parsing, this may be slow or fail…`);
@@ -229,17 +230,17 @@ async function loadBytes(name, bytes) {
   const asAB = () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
   try {
     if (ext === 'stl') {
-      addMesh(new STLLoader().parse(asAB()), name);
+      addMesh(new STLLoader().parse(asAB()), stem);
     } else if (ext === 'obj') {
-      addGroupMeshes(new OBJLoader().parse(new TextDecoder().decode(bytes)), name);
+      addGroupMeshes(new OBJLoader().parse(new TextDecoder().decode(bytes)), stem);
     } else if (ext === 'ply') {
-      addMesh(new PLYLoader().parse(asAB()), name);
+      addMesh(new PLYLoader().parse(asAB()), stem);
     } else if (ext === '3mf') {
-      addGroupMeshes(new ThreeMFLoader().parse(asAB()), name);
+      addGroupMeshes(new ThreeMFLoader().parse(asAB()), stem);
     } else if (ext === 'gltf' || ext === 'glb') {
       const gltf = await new Promise((ok, err) =>
         new GLTFLoader().parse(asAB(), '', ok, err));
-      addGroupMeshes(gltf.scene, name);
+      addGroupMeshes(gltf.scene, stem);
     } else if (BREP_EXTS.includes(ext)) {
       status(`${name}: parsing with OpenCascade (WASM)…`);
       const oc = await occtModule();
@@ -476,3 +477,6 @@ function loop() {
 }
 renderer.setAnimationLoop(loop);
 boot();
+
+// test hook — exact part/geometry state for the Playwright suite
+window.__viewer = { parts, state, lastFile };
