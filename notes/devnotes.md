@@ -42,3 +42,5 @@ browser; three.js and occt-import-js load from jsDelivr via the importmap in
 - Optional: vendor three.js/occt locally to drop the CDN dependency.
 - Optional feature ideas from Obsidian STEP-viewer: per-axis distance
   components, angle/radius measurement, annotations, nav cube.
+
+- 2026-11-07: session handoff → notes/RESUME.md

@@ -50,7 +50,7 @@ dir.position.set(1, 0.8, 1.5);
 scene.add(dir);
 
 const grid = new THREE.GridHelper(100, 20, 0x3a4048, 0x262a31);
-grid.rotation.x = Math.PI / 2; // CAD Z-up
+// default Y-up (3D/optics convention); Z-up selectable in the HUD
 scene.add(grid);
 const axes = new THREE.AxesHelper(15);
 scene.add(axes);
@@ -92,12 +92,12 @@ const baseMat = new THREE.MeshStandardMaterial({
 const edgeMat = new THREE.LineBasicMaterial({ color: 0x16222c, transparent: true, opacity: 0.55 });
 const clipPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
 
-const state = { wireframe: false, edges: true, measuring: false, up: 'z' };
+const state = { wireframe: false, edges: true, measuring: false, up: 'y' };
 
 function setUp(axis) {
   state.up = axis;
   camera.up.set(0, axis === 'z' ? 0 : 1, axis === 'z' ? 1 : 0);
-  grid.rotation.x = axis === 'z' ? Math.PI / 2 : 0;
+  grid.rotation.set(axis === 'z' ? Math.PI / 2 : 0, 0, 0);
   frameModel();
 }
 const parts = [];   // { name, mesh, edges, color }
