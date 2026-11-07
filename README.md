@@ -27,7 +27,7 @@ uploads — static files only, everything stays client-side.
   URL fragment (`#name.stl;gz=…`). Nothing is uploaded anywhere; the URL
   itself carries the model. Files over ~450 KB get a `?url=` link to a
   hosted copy instead.
-- Z-up, like CAD.
+- Up-axis toggle — Y-up by default (3D/optics convention), Z-up for CAD.
 
 ## Run it
 
