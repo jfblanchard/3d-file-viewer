@@ -8,14 +8,41 @@ format converter (drop a STEP file, download a glTF). Built for the
 common case of "someone sent me a CAD export and I just want to see
 what is in it."
 
+![The viewer showing NASA's Voyager probe, with the collapsible part
+tree on the left](docs/screenshot.png)
+
 ## Formats
 
-- **STEP / IGES / BRep**: parsed client-side by
-  [occt-import-js](https://github.com/kovacsv/occt-import-js) (the real
-  OpenCascade kernel compiled to WebAssembly). Assembly bodies come
-  through with their names.
-- **STL / OBJ / PLY / 3MF / glTF / GLB**: three.js loaders. Draco- and
-  Meshopt-compressed GLBs decode too.
+| Format | Load | Save | Notes |
+|---|---|---|---|
+| STEP (.step/.stp) | yes | | assembly bodies keep their names |
+| IGES (.iges/.igs) | yes | | |
+| BRep (.brep/.rle) | yes | | |
+| STL | yes | yes | binary and ASCII |
+| OBJ | yes | yes | |
+| PLY | yes | yes | |
+| 3MF | yes | | |
+| glTF / GLB | yes | GLB | Draco- and Meshopt-compressed too |
+
+B-rep formats are parsed client-side by
+[occt-import-js](https://github.com/kovacsv/occt-import-js) (the real
+OpenCascade kernel compiled to WebAssembly); the mesh formats use
+three.js loaders. Saving a loaded file in another format is how this
+doubles as a converter.
+
+## Using it
+
+- **Open**: the `Open…` button, or drag and drop a file anywhere.
+  The `Samples` dropdown has four built-in models to try.
+- **Navigate**: left-drag orbits, scroll wheel zooms, right-drag pans.
+  `Fit` re-frames the model; the axis dropdown switches Y-up/Z-up.
+- **Inspect**: the left tree lists every part, grouped by name prefix;
+  expand a group to reach its parts. Checkboxes toggle visibility and
+  the swatch recolors a part. `Edges`, `Wireframe`, and `Grid` toggle
+  overlays.
+- **Share / save**: `Copy link` puts a small model in the URL itself
+  (nothing is uploaded), `PNG` saves a screenshot, `Export` downloads
+  the model in another format.
 
 ## Features
 
@@ -73,7 +100,10 @@ at a git repo; build command: none, output directory: `/`.
 ## How it works
 
 `viewer.js` is one ES module. Three.js renders; `OrbitControls` handles
-the camera. For B-rep formats the file bytes go to
+orbit and pan, while wheel and pinch zoom are owned directly
+(OrbitControls' zoom is disabled; see
+[threejs-lessons.md](https://github.com/jfblanchard/central-planning)
+for why). For B-rep formats the file bytes go to
 `occt.ReadStepFile()` / `ReadIgesFile` / `ReadBrepFile`, which return
 triangulated meshes with part names; each part becomes a
 `BufferGeometry`. fflate (gzip) powers the share link.

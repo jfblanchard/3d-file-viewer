@@ -2,11 +2,12 @@
 
 - **Generated:** 2026-11-24 (by project_status.py — git-derived, not hand-edited)
 - **Repo:** /mnt/data/projects/3d-file-viewer
-- **Git:** branch `main`, 12 commits, 2 changed/untracked, ahead 0, behind 0
-- **Last commit:** `4ffc1ab` 2026-11-24 — Remove folder browser; slow wheel throttle to one notch per 45 ms
+- **Git:** branch `main`, 13 commits, 2 changed/untracked, ahead 0, behind 0
+- **Last commit:** `29506c0` 2026-11-24 — Own zoom path: disable OrbitControls zoom, velocity-clamped wheel + pinch dolly
 
 ## RECENT COMMITS (newest first)
 
+- `29506c0` (2026-11-24) Own zoom path: disable OrbitControls zoom, velocity-clamped wheel + pinch dolly
 - `4ffc1ab` (2026-11-24) Remove folder browser; slow wheel throttle to one notch per 45 ms
 - `a66ed3c` (2026-11-24) Voyager default sample; Utah teapot and Stanford bunny replace toy car; DPR-correct wheel notch
 - `95f5311` (2026-11-24) Normalize wheel zoom: fixed-notch steps, zoomSpeed 0.35, model-scaled distance clamps
@@ -18,7 +19,6 @@
 - `df0f747` (2026-11-07) Playwright test suite (16 tests); fix occt-import-js UMD import, normalize part names
 - `0150c4d` (2026-11-07) Untrack notes/ agent files, README up-axis line matches Y-up default
 - `b8bf107` (2026-11-07) Default up-axis to Y (3D/optics convention), move agent files to notes/
-- `68a6e09` (2026-11-07) 3d-file-viewer v2: docked model tree, XYZ gizmo, format export, up-axis toggle
 
 ## STATUS DOCS (on disk; freshest edit wins)
 
