@@ -53,7 +53,7 @@ controls.zoomSpeed = 0.35; // wheel zoom was far too fast; range clamped in fram
 // wheels send huge deltas. OrbitControls (r160) scales each event's zoom by
 // |deltaY| / (100 * devicePixelRatio), so the same physical gesture can zoom
 // 2% or 50%. Instead, take over wheel handling: one fixed-size zoom step per
-// 35 ms, sign from the accumulated delta. The synthetic step is sized
+// 45 ms, sign from the accumulated delta. The synthetic step is sized
 // 100 * devicePixelRatio so it equals exactly one canonical notch on any
 // display. Fast scrolling still zooms quickly; a single notch always zooms
 // a little.
@@ -65,7 +65,7 @@ renderer.domElement.addEventListener('wheel', (e) => {
   e.preventDefault();
   e.stopPropagation();
   const now = performance.now();
-  if (now - lastWheelStep < 35) return;
+  if (now - lastWheelStep < 45) return;
   lastWheelStep = now;
   syntheticWheel = true;
   renderer.domElement.dispatchEvent(new WheelEvent('wheel', {
@@ -343,8 +343,7 @@ function gltfLoader() {
 const BREP_EXTS = ['step', 'stp', 'iges', 'igs', 'brep'];
 
 // Parse file bytes into a target context {group, parts, wantEdges} without
-// touching the main scene. ctx defaults to the live model (mainCtx); the
-// folder-browser thumbnails parse into a temporary group.
+// touching the main scene. ctx defaults to the live model (mainCtx).
 async function parseBytes(name, bytes, ctx) {
   const ext = name.split('.').pop().toLowerCase();
   const stem = name.replace(/\.[^.]+$/, '');
@@ -446,149 +445,6 @@ async function loadSample(key = 'voyager') {
   } catch (e) {
     status(`sample ${smp.label}: ${e.message}`, true);
   }
-}
-
-// ---------- folder browser ----------
-// File System Access API (Chromium only): "Folder…" picks a directory, the
-// sidebar lists every supported file under it with a rendered thumbnail,
-// and a row click loads it. Files never leave the browser; the picker hands
-// back File objects.
-const folderEl = document.getElementById('folder');
-const folderBtn = document.getElementById('folderBtn');
-const ALL_EXTS = [...BREP_EXTS, 'stl', 'obj', 'ply', '3mf', 'gltf', 'glb'];
-const thumbQueue = [];
-let thumbBusy = false;
-
-if (!('showDirectoryPicker' in window)) {
-  folderBtn.disabled = true;
-  folderBtn.title = 'Folder browsing needs a Chromium-based browser (Chrome, Edge, Arc)';
-}
-
-async function* walkDir(dir, prefix = '') {
-  for await (const [name, h] of dir.entries()) {
-    if (h.kind === 'file') {
-      const ext = name.split('.').pop().toLowerCase();
-      if (ALL_EXTS.includes(ext)) yield { handle: h, name, path: prefix + name, ext };
-    } else if (h.kind === 'directory') {
-      yield* walkDir(h, prefix + name + '/');
-    }
-  }
-}
-
-folderBtn.onclick = async () => {
-  let root;
-  try { root = await showDirectoryPicker(); } catch { return; }  // cancelled
-  thumbQueue.length = 0;
-  folderEl.innerHTML = '';
-  status(`scanning ${root.name}…`);
-  let n = 0;
-  for await (const e of walkDir(root)) { addFolderRow(e); n++; }
-  status(n ? `${root.name}: ${n} 3D file${n > 1 ? 's' : ''}` : `${root.name}: no supported files`);
-  if (!n) folderEl.innerHTML = '<div class="empty">no supported 3D files here</div>';
-};
-
-const thumbIO = ('IntersectionObserver' in window)
-  ? new IntersectionObserver(es => es.forEach(en => {
-      if (en.isIntersecting) {
-        thumbIO.unobserve(en.target);
-        thumbQueue.push(en.target._entry);
-        pumpThumbs();
-      }
-    }), { root: folderEl })
-  : null;
-
-function addFolderRow(e) {
-  const row = document.createElement('div');
-  row.className = 'frow';
-  row.title = e.path;
-  const img = document.createElement('img');
-  img.className = 'fthumb';
-  img.alt = e.ext;
-  const label = document.createElement('span');
-  label.className = 'fname';
-  label.textContent = e.path;
-  row.append(img, label);
-  row._entry = e;
-  row.onclick = async () => {
-    document.querySelectorAll('.frow.active').forEach(r => r.classList.remove('active'));
-    row.classList.add('active');
-    try {
-      clearModel();
-      const f = await e.handle.getFile();
-      await loadBytes(f.name, new Uint8Array(await f.arrayBuffer()), e.path);
-    } catch (err) { status(`${e.path}: ${err.message}`, true); }
-  };
-  e.img = img;
-  folderEl.append(row);
-  if (thumbIO) thumbIO.observe(row);
-  else { thumbQueue.push(e); pumpThumbs(); }
-}
-
-async function pumpThumbs() {
-  if (thumbBusy) return;
-  thumbBusy = true;
-  while (thumbQueue.length) {
-    const e = thumbQueue.shift();
-    try {
-      const url = await renderThumb(e);
-      if (url) e.img.src = url;
-      else extBadge(e);
-    } catch { extBadge(e); }
-  }
-  thumbBusy = false;
-}
-
-function extBadge(e) {
-  const d = document.createElement('div');
-  d.className = 'fthumb fext';
-  d.textContent = e.ext;
-  e.img.replaceWith(d);
-}
-
-// one shared offscreen renderer for all thumbnails
-let thumbR = null;
-function thumbRenderer() {
-  if (!thumbR) {
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 96;
-    const r = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
-    r.setSize(96, 96, false);
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x22252b);
-    const cam = new THREE.PerspectiveCamera(40, 1, 0.001, 1e9);
-    const key = new THREE.DirectionalLight(0xffffff, 1.5);
-    key.position.set(1, 1.4, 1.1);
-    const fill = new THREE.DirectionalLight(0xffffff, 0.4);
-    fill.position.set(-1.2, -0.6, -0.8);
-    scene.add(key, fill, new THREE.AmbientLight(0xffffff, 0.5));
-    thumbR = { r, scene, cam };
-  }
-  return thumbR;
-}
-
-async function renderThumb(e) {
-  const f = await e.handle.getFile();
-  const ctx = { group: new THREE.Group(), parts: [], wantEdges: false };
-  await parseBytes(f.name, new Uint8Array(await f.arrayBuffer()), ctx);
-  if (!ctx.parts.length) return null;
-  const { r, scene, cam } = thumbRenderer();
-  scene.add(ctx.group);
-  const box = new THREE.Box3().setFromObject(ctx.group);
-  const c = box.getCenter(new THREE.Vector3());
-  const s = box.getSize(new THREE.Vector3()).length() || 1;
-  cam.position.copy(c).add(
-    new THREE.Vector3(1, 0.7, -1.2).normalize().multiplyScalar(s * 1.6));
-  cam.near = s / 100; cam.far = s * 20;
-  cam.updateProjectionMatrix();
-  r.render(scene, cam);
-  const url = r.domElement.toDataURL('image/png');
-  scene.remove(ctx.group);
-  ctx.group.traverse(o => {
-    o.geometry?.dispose?.();
-    const mats = Array.isArray(o.material) ? o.material : [o.material];
-    mats.forEach(mm => mm?.dispose?.());
-  });
-  return url;
 }
 
 // ---------- export ----------

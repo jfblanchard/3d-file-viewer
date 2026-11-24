@@ -3,11 +3,10 @@
 General-purpose 3D files in the browser. No build step, no server, no
 uploads; static files only, everything stays client-side.
 
-It is two things at once: a viewer for poking through 3D files on disk
-(point it at a folder and it thumbnails every model it finds), and a
+It is two things at once: a viewer for poking through 3D files, and a
 format converter (drop a STEP file, download a glTF). Built for the
-common case of "I have a directory of CAD exports and just want to see
-what is in them."
+common case of "someone sent me a CAD export and I just want to see
+what is in it."
 
 ## Formats
 
@@ -25,10 +24,6 @@ what is in them."
   by shared name prefixes, with per-part or per-group visibility and
   color swatches (STEP part colors come through)
 - **Orientation gizmo**: XYZ triad in the lower-right, tracks the camera
-- **Folder browsing**: `Open folder…` in the sidebar scans a local
-  directory, lists every supported file inside with a rendered
-  thumbnail, click to load (Chromium only; uses the File System
-  Access API)
 - **Samples**: the Voyager probe (default), the James Webb Space
   Telescope, the Utah teapot, and the Stanford bunny
 - **Convert / export**: any loaded model downloads as GLB, STL, OBJ,
