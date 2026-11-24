@@ -83,9 +83,9 @@ at a git repo; build command: none, output directory: `/`.
 
 `viewer.js` is one ES module. Three.js renders; `OrbitControls` handles
 orbit and pan, while wheel and pinch zoom are owned directly
-(OrbitControls' zoom is disabled; see
-[threejs-lessons.md](https://github.com/jfblanchard/central-planning)
-for why). For B-rep formats the file bytes go to
+(OrbitControls' zoom is disabled because its per-event step scales with
+delta magnitude, which makes zoom speed wildly device-dependent). For
+B-rep formats the file bytes go to
 `occt.ReadStepFile()` / `ReadIgesFile` / `ReadBrepFile`, which return
 triangulated meshes with part names; each part becomes a
 `BufferGeometry`. fflate (gzip) powers the share link.
