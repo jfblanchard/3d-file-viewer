@@ -20,7 +20,7 @@ FIX = ROOT / "tests" / "fixtures"
 
 MESH_FORMATS = ["stl", "obj", "ply", "3mf", "glb"]
 BREP_FORMATS = ["stp", "igs", "brep"]
-EXPORT_FORMATS = ["glb", "stl", "obj", "ply"]
+EXPORT_FORMATS = ["glb", "stl", "obj", "ply", "3mf"]
 
 CUBE_TRIS = 12
 SPHERE_TRIS = 576  # 12 rings x 24 segments x 2

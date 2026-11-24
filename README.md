@@ -18,7 +18,7 @@ You can use this as a 3D format converter by saving a loaded file in another for
 | STL | yes | yes | binary and ASCII |
 | OBJ | yes | yes | |
 | PLY | yes | yes | |
-| 3MF | yes | | |
+| 3MF | yes | yes | visible parts only; part colors carry over |
 | glTF / GLB | yes | GLB | Draco- and Meshopt-compressed too |
 
 B-rep formats are parsed client-side by

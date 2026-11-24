@@ -16,7 +16,7 @@ import { STLExporter } from 'three/addons/exporters/STLExporter.js';
 import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
 import { PLYExporter } from 'three/addons/exporters/PLYExporter.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { gunzipSync, gzipSync } from 'three/addons/libs/fflate.module.js';
+import { gunzipSync, gzipSync, zipSync, strToU8 } from 'three/addons/libs/fflate.module.js';
 
 const OCCT_VERSION = '0.0.22';
 const OCCT_BASE = `https://cdn.jsdelivr.net/npm/occt-import-js@${OCCT_VERSION}/dist/`;
@@ -496,6 +496,59 @@ function meshesOnlyGroup() {
   return grp;
 }
 
+// 3MF is a zip of XML: content types, a rels pointer, and one model file
+// listing each part's vertices/triangles. Colors ride along as
+// basematerials. Unit is declared millimeter, matching model-units dims.
+function export3MF() {
+  const esc = s => s.replace(/[<>&'"]/g, c =>
+    `&#${c.charCodeAt(0)};`);
+  const parts3mf = parts.filter(p => p.mesh.visible);
+  if (!parts3mf.length) return null;
+  const v = new THREE.Vector3();
+  const objects = parts3mf.map((p, i) => {
+    const g = p.mesh.geometry;
+    const pos = g.attributes.position;
+    const verts = [];
+    for (let k = 0; k < pos.count; k++) {
+      v.fromBufferAttribute(pos, k).applyMatrix4(p.mesh.matrixWorld);
+      verts.push(`<vertex x="${v.x}" y="${v.y}" z="${v.z}"/>`);
+    }
+    const tris = [];
+    if (g.index) {
+      for (let k = 0; k < g.index.count; k += 3)
+        tris.push(`<triangle v1="${g.index.getX(k)}" v2="${g.index.getX(k + 1)}" v3="${g.index.getX(k + 2)}"/>`);
+    } else {
+      for (let k = 0; k < pos.count; k += 3)
+        tris.push(`<triangle v1="${k}" v2="${k + 1}" v3="${k + 2}"/>`);
+    }
+    const c = p.mesh.material.color;
+    const hex = n => Math.round(n * 255).toString(16).padStart(2, '0');
+    return {
+      xml: `<object id="${i + 2}" type="model" name="${esc(p.name || `part${i}`)}" pid="1" pindex="${i}">` +
+        `<mesh><vertices>${verts.join('')}</vertices><triangles>${tris.join('')}</triangles></mesh></object>`,
+      color: `#${hex(c.r)}${hex(c.g)}${hex(c.b)}FF`,
+    };
+  });
+  const modelXml = `<?xml version="1.0" encoding="UTF-8"?>` +
+    `<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">` +
+    `<resources><basematerials id="1">${objects.map(o => `<base displaycolor="${o.color}"/>`).join('')}</basematerials>` +
+    objects.map(o => o.xml).join('') + `</resources>` +
+    `<build>${objects.map((_, i) => `<item objectid="${i + 2}"/>`).join('')}</build></model>`;
+  const ct = `<?xml version="1.0" encoding="UTF-8"?>` +
+    `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
+    `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
+    `<Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/></Types>`;
+  const rels = `<?xml version="1.0" encoding="UTF-8"?>` +
+    `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+    `<Relationship Target="/3D/3dmodel.model" Id="rel0" ` +
+    `Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>`;
+  return zipSync({
+    '3D/3dmodel.model': strToU8(modelXml),
+    '[Content_Types].xml': strToU8(ct),
+    '_rels/.rels': strToU8(rels),
+  });
+}
+
 async function exportModel(fmt) {
   if (!parts.length) { status('nothing to export', true); return; }
   const base = (lastFile?.name || 'model').replace(/\.[^.]+$/, '');
@@ -514,6 +567,10 @@ async function exportModel(fmt) {
       new PLYExporter().parse(grp,
         r => dl(new Blob([r], { type: 'application/octet-stream' }), base + '.ply'),
         { binary: true });
+    } else if (fmt === '3mf') {
+      const z = export3MF();
+      if (!z) { status('nothing visible to export', true); return; }
+      dl(new Blob([z], { type: 'model/3mf' }), base + '.3mf');
     }
     const brepNote = lastFile && BREP_EXTS.includes(lastFile.ext)
       ? ' — exported as mesh; B-rep face data isn\'t carried through' : '';
