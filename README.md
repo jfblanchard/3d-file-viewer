@@ -57,30 +57,11 @@ three.js loaders.
   hosted copy instead.
 - Up-axis toggle: Y-up by default (3D/optics convention), Z-up for CAD.
 
-## Sample model credits
-
-- `samples/jwst.glb`: James Webb Space Telescope, from
-  [NASA 3D Resources](https://science.nasa.gov/3d-resources/)
-  ([source](https://github.com/nasa/NASA-3D-Resources/tree/master/3D%20Models/James%20Webb%20Space%20Telescope%20%28B%29)).
-  Courtesy of NASA; use does not imply NASA endorsement.
-- `samples/voyager.glb`: Voyager probe, also from
-  [NASA 3D Resources](https://science.nasa.gov/3d-resources/). Same
-  terms as above.
-- Utah teapot: generated in code via three.js `TeapotGeometry` (Martin
-  Newell's public-domain patch data). No file.
-- `samples/bunny.ply`: Stanford bunny (`bun_zipper_res2`), from the
-  [Stanford 3D Scanning Repository](https://graphics.stanford.edu/data/3Dscanrep/).
-  Stanford permits free use with acknowledgment of the Stanford
-  University Computer Graphics Laboratory. Unmodified.
-
-The viewer shows the credit for whichever sample is loaded, in the status
-line and the lower-left corner.
-
 ## Try it live
 
-[3d-file-viewer.pages.dev](https://3d-file-viewer.pages.dev): drop a
-STEP, STL, or glTF file onto the page and it opens entirely in your
-browser. Nothing is uploaded.
+Drop a STEP, STL, or glTF file onto the page and it opens entirely in your browser. Nothing is uploaded.
+
+Try it here: [3d-file-viewer.pages.dev](https://3d-file-viewer.pages.dev)
 
 ## Run it
 
@@ -113,3 +94,23 @@ triangulated meshes with part names; each part becomes a
 - [ ] Measurement on edges/faces, not just surface points
 - [ ] Explode view for assemblies
 - [ ] OBJ MTL / glTF material passthrough
+
+
+## Sample model credits
+
+- `samples/jwst.glb`: James Webb Space Telescope, from
+  [NASA 3D Resources](https://science.nasa.gov/3d-resources/)
+  ([source](https://github.com/nasa/NASA-3D-Resources/tree/master/3D%20Models/James%20Webb%20Space%20Telescope%20%28B%29)).
+  Courtesy of NASA; use does not imply NASA endorsement.
+- `samples/voyager.glb`: Voyager probe, also from
+  [NASA 3D Resources](https://science.nasa.gov/3d-resources/). Same
+  terms as above.
+- Utah teapot: generated in code via three.js `TeapotGeometry` (Martin
+  Newell's public-domain patch data). No file.
+- `samples/bunny.ply`: Stanford bunny (`bun_zipper_res2`), from the
+  [Stanford 3D Scanning Repository](https://graphics.stanford.edu/data/3Dscanrep/).
+  Stanford permits free use with acknowledgment of the Stanford
+  University Computer Graphics Laboratory. Unmodified.
+
+The viewer shows the credit for whichever sample is loaded, in the status
+line and the lower-left corner.
