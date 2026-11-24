@@ -97,17 +97,22 @@ def test_sample_voyager_credit(page):
 
 
 def test_wheel_zoom_normalized(page):
-    # wheel deltas are normalized to one fixed notch per 35 ms (see
-    # central-planning/tools/threejs-lessons.md): a single scroll must be
-    # a small step, not a jump halfway across the scene.
+    # zoom is fully owned (controls.enableZoom = false; see
+    # central-planning/tools/threejs-lessons.md): a single notch eases
+    # to a ~4% step and a flood is velocity-clamped, never a fly-through.
     dist = ("window.__viewer.camera.position"
             ".distanceTo(window.__viewer.controls.target)")
     d0 = page.evaluate(dist)
     page.mouse.move(600, 400)
     page.mouse.wheel(0, -120)
-    page.wait_for_timeout(400)
+    page.wait_for_timeout(700)
     d1 = page.evaluate(dist)
     assert 0.9 < d1 / d0 < 1.0
+    for _ in range(40):
+        page.mouse.wheel(0, -700)
+    page.wait_for_timeout(1500)
+    d2 = page.evaluate(dist)
+    assert d2 / d0 > 0.15  # 40 huge deltas must not fly through the model
 
 
 def test_section_removed(page):

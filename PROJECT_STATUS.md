@@ -2,12 +2,12 @@
 
 - **Generated:** 2026-11-24 (by project_status.py — git-derived, not hand-edited)
 - **Repo:** /mnt/data/projects/3d-file-viewer
-- **Git:** branch `main`, 12 commits, clean, ahead 1, behind 0
-- **Last commit:** `82b1a06` 2026-11-24 — Remove folder browser; slow wheel throttle to one notch per 45 ms
+- **Git:** branch `main`, 12 commits, 2 changed/untracked, ahead 0, behind 0
+- **Last commit:** `4ffc1ab` 2026-11-24 — Remove folder browser; slow wheel throttle to one notch per 45 ms
 
 ## RECENT COMMITS (newest first)
 
-- `82b1a06` (2026-11-24) Remove folder browser; slow wheel throttle to one notch per 45 ms
+- `4ffc1ab` (2026-11-24) Remove folder browser; slow wheel throttle to one notch per 45 ms
 - `a66ed3c` (2026-11-24) Voyager default sample; Utah teapot and Stanford bunny replace toy car; DPR-correct wheel notch
 - `95f5311` (2026-11-24) Normalize wheel zoom: fixed-notch steps, zoomSpeed 0.35, model-scaled distance clamps
 - `db60c11` (2026-11-24) Show loaded file name centered above the viewport

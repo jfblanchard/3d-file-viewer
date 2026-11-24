@@ -46,33 +46,63 @@ const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.01, 5
 camera.position.set(60, -70, 55);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.zoomSpeed = 0.35; // wheel zoom was far too fast; range clamped in frameModel
 
-// Mice and trackpads vary wildly in how they report wheel input: some send
-// one event per notch, smooth-scrolling mice send dozens, and high-resolution
-// wheels send huge deltas. OrbitControls (r160) scales each event's zoom by
-// |deltaY| / (100 * devicePixelRatio), so the same physical gesture can zoom
-// 2% or 50%. Instead, take over wheel handling: one fixed-size zoom step per
-// 45 ms, sign from the accumulated delta. The synthetic step is sized
-// 100 * devicePixelRatio so it equals exactly one canonical notch on any
-// display. Fast scrolling still zooms quickly; a single notch always zooms
-// a little.
-let lastWheelStep = 0;
-let syntheticWheel = false;
-const NOTCH = () => 100 * (window.devicePixelRatio || 1);
+// ---------- zoom ----------
+// OrbitControls' own wheel zoom proved erratic: its step scales with
+// |deltaY| / (100 * devicePixelRatio), and input devices report wildly
+// different deltas (see central-planning threejs-lessons.md). Rather than
+// normalize events for it, zoom is fully owned here: OrbitControls' zoom
+// is disabled (rotate/pan untouched) and wheel + pinch feed a damped
+// accumulator. One notch eases to a ~4% step; a sustained scroll is
+// velocity-clamped so it can never fly. Device- and version-proof by
+// construction: there is no other zoom path.
+controls.enableZoom = false;
+let zoomVel = 0;                       // >0 zooms in, decays each frame
+const ZOOM_STEP = 0.04;                // accumulated per wheel event
+
+function dolly(f) {                    // f<1 zooms in, >1 zooms out
+  const off = camera.position.clone().sub(controls.target);
+  off.setLength(THREE.MathUtils.clamp(off.length() * f,
+    controls.minDistance, controls.maxDistance));
+  camera.position.copy(controls.target).add(off);
+}
+
 renderer.domElement.addEventListener('wheel', (e) => {
-  if (syntheticWheel) { syntheticWheel = false; return; } // let our own event through
   e.preventDefault();
   e.stopPropagation();
-  const now = performance.now();
-  if (now - lastWheelStep < 45) return;
-  lastWheelStep = now;
-  syntheticWheel = true;
-  renderer.domElement.dispatchEvent(new WheelEvent('wheel', {
-    deltaY: Math.sign(e.deltaY) * NOTCH(),
-    clientX: e.clientX, clientY: e.clientY, bubbles: true, cancelable: true,
-  }));
-}, { capture: true });
+  zoomVel = THREE.MathUtils.clamp(
+    zoomVel - Math.sign(e.deltaY) * ZOOM_STEP, -1.5, 1.5);
+}, { passive: false });
+
+// two-finger pinch, same dolly path as the wheel (OrbitControls' pinch
+// is off along with its zoom; its two-finger pan still works)
+const activePtrs = new Map();
+let lastPinch = 0;
+const pinchReset = e => {
+  activePtrs.delete(e.pointerId);
+  if (activePtrs.size < 2) lastPinch = 0;
+};
+renderer.domElement.addEventListener('pointerdown',
+  e => activePtrs.set(e.pointerId, [e.clientX, e.clientY]));
+addEventListener('pointerup', pinchReset);
+addEventListener('pointercancel', pinchReset);
+renderer.domElement.addEventListener('pointermove', e => {
+  if (!activePtrs.has(e.pointerId)) return;
+  activePtrs.set(e.pointerId, [e.clientX, e.clientY]);
+  if (activePtrs.size < 2) return;
+  const [a, b] = [...activePtrs.values()];
+  const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+  if (lastPinch) dolly(THREE.MathUtils.clamp(lastPinch / d, 0.92, 1.09));
+  lastPinch = d;
+});
+
+// called from the render loop: drain ~18% of accumulated zoom per frame
+function applyZoom() {
+  if (Math.abs(zoomVel) < 1e-4) { zoomVel = 0; return; }
+  const step = zoomVel * 0.18;
+  zoomVel -= step;
+  dolly(1 - step);
+}
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0x30404f, 0.6));
 const dir = new THREE.DirectionalLight(0xffffff, 1.0);
@@ -585,6 +615,7 @@ addEventListener('resize', () => {
 const G = 110; // gizmo viewport px
 function loop() {
   controls.update();
+  applyZoom();
   renderer.setScissorTest(false);
   renderer.setViewport(0, 0, innerWidth, innerHeight);
   renderer.render(scene, camera);
