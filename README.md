@@ -1,6 +1,6 @@
 # 3d-file-viewer
 
-This is a simple app that lets you view 3D files in the browser, and convert between a few different formats.  
+This is a simple app that lets you view 3D files in the browser, and convert between several 3D formats.  
 
 <p align="center">
   <img src="docs/screenshot-jwst-wireframe.png" width="75%" alt="James Webb Space Telescope in wireframe mode, with the collapsible part tree on the left">
