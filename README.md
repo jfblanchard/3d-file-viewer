@@ -7,6 +7,8 @@ tree on the left](docs/screenshot.png)
 
 ## Formats Supported
 
+You can use this as a 3D format converter by saving a loaded file in another format.
+
 | Format | Load | Save | Notes |
 |---|---|---|---|
 | STEP (.step/.stp) | yes | | assembly bodies keep their names |
@@ -21,8 +23,7 @@ tree on the left](docs/screenshot.png)
 B-rep formats are parsed client-side by
 [occt-import-js](https://github.com/kovacsv/occt-import-js) (the real
 OpenCascade kernel compiled to WebAssembly); the mesh formats use
-three.js loaders.You can use this as a 3D format converter by saving a loaded file in another format.
-
+three.js loaders.
 ## Using it
 
 - **Open**: the `Open…` button, or drag and drop a file anywhere.
