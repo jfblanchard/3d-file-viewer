@@ -6,6 +6,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
+import { TeapotGeometry } from 'three/addons/geometries/TeapotGeometry.js';
 import { ThreeMFLoader } from 'three/addons/loaders/3MFLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
@@ -49,13 +50,16 @@ controls.zoomSpeed = 0.35; // wheel zoom was far too fast; range clamped in fram
 
 // Mice and trackpads vary wildly in how they report wheel input: some send
 // one event per notch, smooth-scrolling mice send dozens, and high-resolution
-// wheels send huge deltas. OrbitControls turns every event into a zoom step,
-// so the same physical notch can zoom 2% or 50%. Instead, take over wheel
-// handling: one fixed-size zoom step per 35 ms, sign from the accumulated
-// delta. Fast scrolling still zooms quickly; a single notch always zooms a
-// little.
+// wheels send huge deltas. OrbitControls (r160) scales each event's zoom by
+// |deltaY| / (100 * devicePixelRatio), so the same physical gesture can zoom
+// 2% or 50%. Instead, take over wheel handling: one fixed-size zoom step per
+// 35 ms, sign from the accumulated delta. The synthetic step is sized
+// 100 * devicePixelRatio so it equals exactly one canonical notch on any
+// display. Fast scrolling still zooms quickly; a single notch always zooms
+// a little.
 let lastWheelStep = 0;
 let syntheticWheel = false;
+const NOTCH = () => 100 * (window.devicePixelRatio || 1);
 renderer.domElement.addEventListener('wheel', (e) => {
   if (syntheticWheel) { syntheticWheel = false; return; } // let our own event through
   e.preventDefault();
@@ -65,7 +69,7 @@ renderer.domElement.addEventListener('wheel', (e) => {
   lastWheelStep = now;
   syntheticWheel = true;
   renderer.domElement.dispatchEvent(new WheelEvent('wheel', {
-    deltaY: Math.sign(e.deltaY) * 150,
+    deltaY: Math.sign(e.deltaY) * NOTCH(),
     clientX: e.clientX, clientY: e.clientY, bubbles: true, cancelable: true,
   }));
 }, { capture: true });
@@ -271,7 +275,7 @@ function frameModel(view = null) {
   const s = box.getSize(new THREE.Vector3());
   modelScale = s.length();
   controls.minDistance = modelScale * 0.05;   // can't dolly inside the model
-  controls.maxDistance = modelScale * 15;     // or out past the far plane
+  controls.maxDistance = modelScale * 8;      // or out where it becomes a speck
   axes.scale.setScalar(modelScale * 0.2 / 15);  // axes sized to the model
   controls.target.copy(c);
   const off = view ? view.clone() : state.up === 'z'
@@ -396,31 +400,44 @@ const loadFile = async f => loadBytes(f.name, new Uint8Array(await f.arrayBuffer
 // Bundled models, served from samples/. Credits show in the status line,
 // the corner overlay and the README.
 const SAMPLES = {
-  jwst: {
-    file: 'samples/jwst.glb', label: 'James Webb Space Telescope', by: 'NASA',
-    view: new THREE.Vector3(-1.1, 0.5, 1),   // mirror side
-    credit: 'model: NASA 3D Resources (science.nasa.gov/3d-resources)',
-  },
   voyager: {
     file: 'samples/voyager.glb', label: 'Voyager probe', by: 'NASA',
     view: new THREE.Vector3(1, 0.5, 1),
     credit: 'model: NASA 3D Resources (science.nasa.gov/3d-resources)',
   },
-  toy_car: {
-    file: 'samples/toy_car.glb', label: 'Toy car', by: 'CC0, Khronos samples',
-    view: new THREE.Vector3(1, 0.7, 1.2),
-    credit: 'model: ToyCar by Guido Odendahl / Eric Chadwick, CC0 (Khronos glTF-Sample-Assets)',
+  jwst: {
+    file: 'samples/jwst.glb', label: 'James Webb Space Telescope', by: 'NASA',
+    view: new THREE.Vector3(-1.1, 0.5, 1),   // mirror side
+    credit: 'model: NASA 3D Resources (science.nasa.gov/3d-resources)',
+  },
+  teapot: {
+    gen: () => new TeapotGeometry(5, 12), label: 'Utah teapot', by: 'Martin Newell',
+    view: new THREE.Vector3(1, 0.6, 1.2),
+    credit: 'model: Utah teapot, Martin Newell (University of Utah, public-domain data)',
+  },
+  bunny: {
+    file: 'samples/bunny.ply', label: 'Stanford bunny', by: 'Stanford CG Lab',
+    view: new THREE.Vector3(1.3, 0.5, 0.9),
+    credit: 'model: Stanford bunny, Stanford University Computer Graphics Laboratory',
   },
 };
 
-async function loadSample(key = 'jwst') {
+async function loadSample(key = 'voyager') {
   const smp = SAMPLES[key];
   clearModel();
   status(`loading sample: ${smp.label}…`);
   try {
+    credit = smp.credit;
+    if (smp.gen) {   // procedural sample, no file to fetch
+      addMesh(smp.gen(), smp.label);
+      frameModel(state.up === 'y' ? smp.view : null);
+      rebuildTree();
+      nameEl.textContent = smp.label;
+      status(`sample: ${smp.label} ✓ (${smp.by})`);
+      return;
+    }
     const r = await fetch(smp.file);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    credit = smp.credit;
     const ok = await loadBytes(smp.file.split('/').pop(), new Uint8Array(await r.arrayBuffer()), smp.label);
     if (ok) {
       if (state.up === 'y') frameModel(smp.view);

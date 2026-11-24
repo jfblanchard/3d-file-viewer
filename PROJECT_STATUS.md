@@ -2,12 +2,13 @@
 
 - **Generated:** 2026-11-24 (by project_status.py — git-derived, not hand-edited)
 - **Repo:** /mnt/data/projects/3d-file-viewer
-- **Git:** branch `main`, 10 commits, clean, ahead 1, behind 0
-- **Last commit:** `26f4076` 2026-11-24 — Normalize wheel zoom: fixed-notch steps, zoomSpeed 0.35, model-scaled distance clamps
+- **Git:** branch `main`, 11 commits, clean, ahead 1, behind 0
+- **Last commit:** `81bf4c9` 2026-11-24 — Voyager default sample; Utah teapot and Stanford bunny replace toy car; DPR-correct wheel notch
 
 ## RECENT COMMITS (newest first)
 
-- `26f4076` (2026-11-24) Normalize wheel zoom: fixed-notch steps, zoomSpeed 0.35, model-scaled distance clamps
+- `81bf4c9` (2026-11-24) Voyager default sample; Utah teapot and Stanford bunny replace toy car; DPR-correct wheel notch
+- `95f5311` (2026-11-24) Normalize wheel zoom: fixed-notch steps, zoomSpeed 0.35, model-scaled distance clamps
 - `db60c11` (2026-11-24) Show loaded file name centered above the viewport
 - `6c7e9df` (2026-11-24) Collapsible prefix-grouped model tree, folder button in sidebar header, drop Measure
 - `088740a` (2026-11-24) Folder browser in sidebar; Voyager and ToyCar samples replace jet

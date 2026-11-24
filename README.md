@@ -29,8 +29,8 @@ what is in them."
   directory, lists every supported file inside with a rendered
   thumbnail, click to load (Chromium only; uses the File System
   Access API)
-- **Samples**: the James Webb Space Telescope (default), the Voyager
-  probe, and a toy car
+- **Samples**: the Voyager probe (default), the James Webb Space
+  Telescope, the Utah teapot, and the Stanford bunny
 - **Convert / export**: any loaded model downloads as GLB, STL, OBJ,
   or PLY (drop a STEP, get a glTF)
 - **Dims**: bounding-box dimensions in the corner
@@ -50,10 +50,12 @@ what is in them."
 - `samples/voyager.glb`: Voyager probe, also from
   [NASA 3D Resources](https://science.nasa.gov/3d-resources/). Same
   terms as above.
-- `samples/toy_car.glb`: ToyCar by Guido Odendahl and Eric Chadwick,
-  [CC0](https://creativecommons.org/publicdomain/zero/1.0/), from the
-  [Khronos glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets)
-  repo. Unmodified.
+- Utah teapot: generated in code via three.js `TeapotGeometry` (Martin
+  Newell's public-domain patch data). No file.
+- `samples/bunny.ply`: Stanford bunny (`bun_zipper_res2`), from the
+  [Stanford 3D Scanning Repository](https://graphics.stanford.edu/data/3Dscanrep/).
+  Stanford permits free use with acknowledgment of the Stanford
+  University Computer Graphics Laboratory. Unmodified.
 
 The viewer shows the credit for whichever sample is loaded, in the status
 line and the lower-left corner.

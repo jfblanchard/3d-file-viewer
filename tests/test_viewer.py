@@ -79,12 +79,12 @@ def load(page, path, timeout=90_000):
 
 
 def test_sample_loads(page):
-    # default sample: NASA James Webb Space Telescope, credited in the status
+    # default sample: NASA Voyager probe, credited in the status
     assert len(part_names(page)) > 10
-    assert tri_count(page) > 50_000
+    assert tri_count(page) > 20_000
     assert "NASA" in page.text_content("#status")
     assert "NASA" in page.text_content("#info")
-    assert "James Webb" in page.text_content("#modelName")
+    assert "Voyager" in page.text_content("#modelName")
 
 
 def test_sample_voyager_credit(page):
@@ -117,6 +117,9 @@ def test_section_removed(page):
 def test_tree_groups_prefix(page):
     # JWST has ~36 parts sharing the JWST- prefix: they should collapse
     # under a group node, and its checkbox should toggle all members.
+    page.select_option("#sampleSel", "jwst")
+    page.wait_for_function(
+        "document.getElementById('status').textContent.includes('James Webb Space Telescope ✓')")
     groups = page.query_selector_all("#tree details")
     assert len(groups) >= 1
     jwst = next(g for g in groups if "JWST" in g.query_selector("summary").text_content())
