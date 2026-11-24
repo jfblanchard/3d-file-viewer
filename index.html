@@ -113,6 +113,13 @@
     color: #5d636e; font-size: 11px;
   }
 
+  #modelName {
+    position: fixed; top: 54px; left: 235px; right: 8px; z-index: 6;
+    text-align: center; pointer-events: none;
+    font-size: 13px; font-weight: 500; color: #9aa3ae;
+    text-shadow: 0 1px 3px #14161a;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   #info {
     position: fixed; bottom: 10px; left: 242px; z-index: 10;
     color: #7d8590; pointer-events: none; white-space: pre;
@@ -130,6 +137,7 @@
 </head>
 <body>
 <div id="app"></div>
+<div id="modelName"></div>
 <div id="hud">
   <span class="title">3D file viewer</span>
   <label class="filebtn" for="fileInput">Open…</label>
@@ -189,6 +197,6 @@
   }
 }
 </script>
-<script type="module" src="viewer.js?v=5"></script>
+<script type="module" src="viewer.js?v=6"></script>
 </body>
 </html>

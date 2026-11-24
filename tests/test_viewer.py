@@ -84,6 +84,7 @@ def test_sample_loads(page):
     assert tri_count(page) > 50_000
     assert "NASA" in page.text_content("#status")
     assert "NASA" in page.text_content("#info")
+    assert "James Webb" in page.text_content("#modelName")
 
 
 def test_sample_voyager_credit(page):

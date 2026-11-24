@@ -107,6 +107,7 @@ let credit = '';    // attribution line for bundled sample models
 
 const tree = document.getElementById('tree');
 const treeFoot = document.getElementById('treeFoot');
+const nameEl = document.getElementById('modelName');
 
 // Parts are grouped into a collapsible tree by shared name tokens
 // (JWST-bracket1-fl + JWST-bracket1-sm group under JWST > bracket1).
@@ -219,6 +220,7 @@ function clearModel() {
   parts.length = 0;
   lastFile = null;
   credit = '';
+  nameEl.textContent = '';
   rebuildTree();
 }
 
@@ -341,7 +343,7 @@ async function parseBytes(name, bytes, ctx) {
   }
 }
 
-async function loadBytes(name, bytes) {
+async function loadBytes(name, bytes, display = name) {
   const ext = name.split('.').pop().toLowerCase();
   lastFile = { name, bytes, ext };
   if (bytes.length > BIG_FILE)
@@ -353,6 +355,7 @@ async function loadBytes(name, bytes) {
     await parseBytes(name, bytes, mainCtx);
     frameModel();
     rebuildTree();
+    nameEl.textContent = display;
     status(`${name} ✓`);
     return true;
   } catch (e) {
@@ -392,7 +395,7 @@ async function loadSample(key = 'jwst') {
     const r = await fetch(smp.file);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     credit = smp.credit;
-    const ok = await loadBytes(smp.file.split('/').pop(), new Uint8Array(await r.arrayBuffer()));
+    const ok = await loadBytes(smp.file.split('/').pop(), new Uint8Array(await r.arrayBuffer()), smp.label);
     if (ok) {
       if (state.up === 'y') frameModel(smp.view);
       status(`sample: ${smp.label} ✓ (${smp.by})`);
@@ -469,7 +472,7 @@ function addFolderRow(e) {
     try {
       clearModel();
       const f = await e.handle.getFile();
-      await loadBytes(f.name, new Uint8Array(await f.arrayBuffer()));
+      await loadBytes(f.name, new Uint8Array(await f.arrayBuffer()), e.path);
     } catch (err) { status(`${e.path}: ${err.message}`, true); }
   };
   e.img = img;
@@ -655,7 +658,10 @@ async function boot() {
 // keep the sidebar below the HUD when the toolbar wraps to two rows
 {
   const hud = document.getElementById('hud'), side = document.getElementById('sidebar');
-  new ResizeObserver(() => { side.style.top = hud.offsetHeight + 'px'; }).observe(hud);
+  new ResizeObserver(() => {
+    side.style.top = hud.offsetHeight + 'px';
+    nameEl.style.top = hud.offsetHeight + 8 + 'px';
+  }).observe(hud);
 }
 document.getElementById('fileInput').onchange = e => {
   clearModel();
