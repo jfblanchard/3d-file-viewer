@@ -2,8 +2,9 @@
 
 This is a simple browser app that lets you view 3D files, and save between a few different formats.  
 
-![The viewer showing NASA's Voyager probe, with the collapsible part
-tree on the left](docs/screenshot.png)
+| Voyager probe | James Webb Space Telescope, wireframe |
+|:---:|:---:|
+| ![Voyager probe](docs/screenshot.png) | ![JWST wireframe](docs/screenshot-jwst-wireframe.png) |
 
 ## Formats Supported
 
