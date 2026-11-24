@@ -8,6 +8,8 @@ import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
 import { ThreeMFLoader } from 'three/addons/loaders/3MFLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { STLExporter } from 'three/addons/exporters/STLExporter.js';
 import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
@@ -17,6 +19,7 @@ import { gunzipSync, gzipSync } from 'three/addons/libs/fflate.module.js';
 
 const OCCT_VERSION = '0.0.22';
 const OCCT_BASE = `https://cdn.jsdelivr.net/npm/occt-import-js@${OCCT_VERSION}/dist/`;
+const DRACO_PATH = 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/';
 const SHARE_MAX = 450 * 1024;
 const BIG_FILE = 100 * 1024 * 1024; // soft limit — WASM memory, not a hard cap
 
@@ -30,7 +33,6 @@ const status = (msg, isErr = false) => {
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
-renderer.localClippingEnabled = true;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 document.getElementById('app').appendChild(renderer.domElement);
 
@@ -90,7 +92,6 @@ const baseMat = new THREE.MeshStandardMaterial({
   side: THREE.DoubleSide,
 });
 const edgeMat = new THREE.LineBasicMaterial({ color: 0x16222c, transparent: true, opacity: 0.55 });
-const clipPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
 
 const state = { wireframe: false, edges: true, measuring: false, up: 'y' };
 
@@ -101,8 +102,10 @@ function setUp(axis) {
   frameModel();
 }
 const parts = [];   // { name, mesh, edges, color }
+const mainCtx = { group: model, parts, wantEdges: true };
 let lastFile = null;
 let modelScale = 1;
+let credit = '';    // attribution line for bundled sample models
 
 const tree = document.getElementById('tree');
 const treeFoot = document.getElementById('treeFoot');
@@ -110,7 +113,7 @@ const treeFoot = document.getElementById('treeFoot');
 function rebuildTree() {
   tree.innerHTML = '';
   if (!parts.length) {
-    tree.innerHTML = '<div class="empty">no model — drop a file or open the sample</div>';
+    tree.innerHTML = '<div class="empty">no model: drop a file or pick a sample</div>';
     treeFoot.textContent = '';
     return;
   }
@@ -143,33 +146,35 @@ function clearModel() {
   markup.clear();
   parts.length = 0;
   lastFile = null;
+  credit = '';
   rebuildTree();
 }
 
-function addMesh(geom, name, color = null, material = null) {
+function addMesh(geom, name, color = null, material = null, ctx = mainCtx) {
   if (!geom.getAttribute('normal')) geom.computeVertexNormals();
   const m = material || baseMat.clone();
   if (color) m.color.copy(color);
   m.wireframe = state.wireframe;
   const mesh = new THREE.Mesh(geom, m);
-  model.add(mesh);
+  ctx.group.add(mesh);
   let edges = null;
-  if (state.edges) {
+  if (state.edges && ctx.wantEdges) {
     edges = new THREE.LineSegments(new THREE.EdgesGeometry(geom, 30), edgeMat);
-    model.add(edges);
+    ctx.group.add(edges);
   }
-  parts.push({ name, mesh, edges, color: m.color.clone() });
+  ctx.parts.push({ name, mesh, edges, color: m.color.clone() });
   return mesh;
 }
 
-function frameModel() {
+function frameModel(view = null) {
   const box = new THREE.Box3().setFromObject(model);
   if (box.isEmpty()) return;
   const c = box.getCenter(new THREE.Vector3());
   const s = box.getSize(new THREE.Vector3());
   modelScale = s.length();
+  axes.scale.setScalar(modelScale * 0.2 / 15);  // axes sized to the model
   controls.target.copy(c);
-  const off = state.up === 'z'
+  const off = view ? view.clone() : state.up === 'z'
     ? new THREE.Vector3(1, -1.2, 0.8)
     : new THREE.Vector3(1, 0.7, -1.2);
   camera.position.copy(c).add(
@@ -178,10 +183,8 @@ function frameModel() {
   camera.updateProjectionMatrix();
   document.getElementById('info').textContent =
     `drop a file anywhere · step/iges/brep · stl/obj/ply/3mf/gltf\n` +
-    `dims ${s.x.toFixed(1)} × ${s.y.toFixed(1)} × ${s.z.toFixed(1)} mm (assumed)`;
-  const sl = document.getElementById('sectSlider');
-  sl.min = box.min.z - 0.05 * s.z; sl.max = box.max.z + 0.05 * s.z;
-  sl.step = s.z / 200; sl.value = box.max.z + 0.05 * s.z;
+    `dims ${s.x.toFixed(1)} × ${s.y.toFixed(1)} × ${s.z.toFixed(1)} mm (assumed)` +
+    (credit ? `\n${credit}` : '');
 }
 
 // ---------- loaders ----------
@@ -194,7 +197,7 @@ async function occtModule() {
   return occt;
 }
 
-function addOcctMeshes(result) {
+function addOcctMeshes(result, ctx = mainCtx) {
   (result.meshes || []).forEach((m, i) => {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(m.attributes.position.array, 3));
@@ -202,78 +205,272 @@ function addOcctMeshes(result) {
       g.setAttribute('normal', new THREE.Float32BufferAttribute(m.attributes.normal.array, 3));
     if (m.index) g.setIndex(m.index.array);
     const color = m.color ? new THREE.Color(m.color[0], m.color[1], m.color[2]) : null;
-    addMesh(g, m.name || `part ${i + 1}`, color);
+    addMesh(g, m.name || `part ${i + 1}`, color, null, ctx);
   });
 }
 
-function addGroupMeshes(group, fallbackName) {
+function addGroupMeshes(group, fallbackName, ctx = mainCtx) {
+  group.updateMatrixWorld(true);
   let i = 0;
   group.traverse(o => {
     if (o.isMesh) {
       o.geometry.applyMatrix4(o.matrixWorld);
-      addMesh(o.geometry, o.name || `${fallbackName} ${++i}`,
-        o.material?.color?.clone?.() ?? null);
+      // glTF splits a multi-primitive mesh into siblings named Mesh_0_1, _2…;
+      // the material name says more about which part it is.
+      const multi = o.parent && o.parent.children.filter(c => c.isMesh).length > 1;
+      const nm = (multi && o.material?.name) || o.name || `${fallbackName} ${++i}`;
+      addMesh(o.geometry, nm,
+        o.material?.color?.clone?.() ?? null, null, ctx);
     }
   });
 }
 
+// glTF loader with Draco + Meshopt decoders (compressed GLBs, e.g. NASA's)
+let gltf_ = null;
+function gltfLoader() {
+  if (!gltf_) {
+    gltf_ = new GLTFLoader()
+      .setDRACOLoader(new DRACOLoader().setDecoderPath(DRACO_PATH))
+      .setMeshoptDecoder(MeshoptDecoder);
+  }
+  return gltf_;
+}
+
 const BREP_EXTS = ['step', 'stp', 'iges', 'igs', 'brep'];
+
+// Parse file bytes into a target context {group, parts, wantEdges} without
+// touching the main scene. ctx defaults to the live model (mainCtx); the
+// folder-browser thumbnails parse into a temporary group.
+async function parseBytes(name, bytes, ctx) {
+  const ext = name.split('.').pop().toLowerCase();
+  const stem = name.replace(/\.[^.]+$/, '');
+  const asAB = () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  if (ext === 'stl') {
+    addMesh(new STLLoader().parse(asAB()), stem, null, null, ctx);
+  } else if (ext === 'obj') {
+    addGroupMeshes(new OBJLoader().parse(new TextDecoder().decode(bytes)), stem, ctx);
+  } else if (ext === 'ply') {
+    addMesh(new PLYLoader().parse(asAB()), stem, null, null, ctx);
+  } else if (ext === '3mf') {
+    addGroupMeshes(new ThreeMFLoader().parse(asAB()), stem, ctx);
+  } else if (ext === 'gltf' || ext === 'glb') {
+    const gltf = await new Promise((ok, err) => gltfLoader().parse(asAB(), '', ok, err));
+    addGroupMeshes(gltf.scene, stem, ctx);
+  } else if (BREP_EXTS.includes(ext)) {
+    const oc = await occtModule();
+    const res = ext.startsWith('ig')
+      ? oc.ReadIgesFile(bytes, null)
+      : ext === 'brep' ? oc.ReadBrepFile(bytes, null)
+      : oc.ReadStepFile(bytes, null);
+    if (!res.success) throw new Error('OpenCascade could not parse the file');
+    addOcctMeshes(res, ctx);
+  } else {
+    throw new Error(`.${ext} not supported`);
+  }
+}
 
 async function loadBytes(name, bytes) {
   const ext = name.split('.').pop().toLowerCase();
-  const stem = name.replace(/\.[^.]+$/, '');
   lastFile = { name, bytes, ext };
   if (bytes.length > BIG_FILE)
     status(`${name}: ${(bytes.length / 1e6).toFixed(0)} MB — over the ~100 MB comfort limit for in-browser parsing, this may be slow or fail…`);
   else
     status(`${name} (${(bytes.length / 1024).toFixed(0)} KB)…`);
-  const asAB = () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
   try {
-    if (ext === 'stl') {
-      addMesh(new STLLoader().parse(asAB()), stem);
-    } else if (ext === 'obj') {
-      addGroupMeshes(new OBJLoader().parse(new TextDecoder().decode(bytes)), stem);
-    } else if (ext === 'ply') {
-      addMesh(new PLYLoader().parse(asAB()), stem);
-    } else if (ext === '3mf') {
-      addGroupMeshes(new ThreeMFLoader().parse(asAB()), stem);
-    } else if (ext === 'gltf' || ext === 'glb') {
-      const gltf = await new Promise((ok, err) =>
-        new GLTFLoader().parse(asAB(), '', ok, err));
-      addGroupMeshes(gltf.scene, stem);
-    } else if (BREP_EXTS.includes(ext)) {
-      status(`${name}: parsing with OpenCascade (WASM)…`);
-      const oc = await occtModule();
-      const res = ext.startsWith('ig')
-        ? oc.ReadIgesFile(bytes, null)
-        : ext === 'brep' ? oc.ReadBrepFile(bytes, null)
-        : oc.ReadStepFile(bytes, null);
-      if (!res.success) throw new Error('OpenCascade could not parse the file');
-      addOcctMeshes(res);
-    } else {
-      throw new Error(`.${ext} not supported`);
-    }
+    if (BREP_EXTS.includes(ext)) status(`${name}: parsing with OpenCascade (WASM)…`);
+    await parseBytes(name, bytes, mainCtx);
     frameModel();
     rebuildTree();
     status(`${name} ✓`);
+    return true;
   } catch (e) {
     status(`${name}: ${e.message}`, true);
+    return false;
   }
 }
 
 const loadFile = async f => loadBytes(f.name, new Uint8Array(await f.arrayBuffer()));
 
-// ---------- sample ----------
-function loadSample() {
+// ---------- samples ----------
+// Bundled models, served from samples/. Credits show in the status line,
+// the corner overlay and the README.
+const SAMPLES = {
+  jwst: {
+    file: 'samples/jwst.glb', label: 'James Webb Space Telescope', by: 'NASA',
+    view: new THREE.Vector3(-1.1, 0.5, 1),   // mirror side
+    credit: 'model: NASA 3D Resources (science.nasa.gov/3d-resources)',
+  },
+  voyager: {
+    file: 'samples/voyager.glb', label: 'Voyager probe', by: 'NASA',
+    view: new THREE.Vector3(1, 0.5, 1),
+    credit: 'model: NASA 3D Resources (science.nasa.gov/3d-resources)',
+  },
+  toy_car: {
+    file: 'samples/toy_car.glb', label: 'Toy car', by: 'CC0, Khronos samples',
+    view: new THREE.Vector3(1, 0.7, 1.2),
+    credit: 'model: ToyCar by Guido Odendahl / Eric Chadwick, CC0 (Khronos glTF-Sample-Assets)',
+  },
+};
+
+async function loadSample(key = 'jwst') {
+  const smp = SAMPLES[key];
   clearModel();
-  const plate = new THREE.BoxGeometry(60, 40, 4); plate.translate(0, 0, 2);
-  const boss = new THREE.CylinderGeometry(10, 10, 18, 48); boss.rotateX(Math.PI / 2); boss.translate(0, -8, 13);
-  const dome = new THREE.SphereGeometry(9, 48, 32); dome.scale(1, 1, 0.6); dome.translate(12, 10, 4);
-  addMesh(plate, 'base-plate', new THREE.Color(0x9db8c9));
-  addMesh(boss, 'boss', new THREE.Color(0xd4a05a));
-  addMesh(dome, 'dome', new THREE.Color(0x7ab87a));
-  frameModel(); rebuildTree();
-  status('sample assembly — try Measure / Section / parts tree / Export');
+  status(`loading sample: ${smp.label}…`);
+  try {
+    const r = await fetch(smp.file);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    credit = smp.credit;
+    const ok = await loadBytes(smp.file.split('/').pop(), new Uint8Array(await r.arrayBuffer()));
+    if (ok) {
+      if (state.up === 'y') frameModel(smp.view);
+      status(`sample: ${smp.label} ✓ (${smp.by})`);
+    }
+  } catch (e) {
+    status(`sample ${smp.label}: ${e.message}`, true);
+  }
+}
+
+// ---------- folder browser ----------
+// File System Access API (Chromium only): "Folder…" picks a directory, the
+// sidebar lists every supported file under it with a rendered thumbnail,
+// and a row click loads it. Files never leave the browser; the picker hands
+// back File objects.
+const folderEl = document.getElementById('folder');
+const folderBtn = document.getElementById('folderBtn');
+const ALL_EXTS = [...BREP_EXTS, 'stl', 'obj', 'ply', '3mf', 'gltf', 'glb'];
+const thumbQueue = [];
+let thumbBusy = false;
+
+if (!('showDirectoryPicker' in window)) {
+  folderBtn.disabled = true;
+  folderBtn.title = 'Folder browsing needs a Chromium-based browser (Chrome, Edge, Arc)';
+}
+
+async function* walkDir(dir, prefix = '') {
+  for await (const [name, h] of dir.entries()) {
+    if (h.kind === 'file') {
+      const ext = name.split('.').pop().toLowerCase();
+      if (ALL_EXTS.includes(ext)) yield { handle: h, name, path: prefix + name, ext };
+    } else if (h.kind === 'directory') {
+      yield* walkDir(h, prefix + name + '/');
+    }
+  }
+}
+
+folderBtn.onclick = async () => {
+  let root;
+  try { root = await showDirectoryPicker(); } catch { return; }  // cancelled
+  thumbQueue.length = 0;
+  folderEl.innerHTML = '';
+  status(`scanning ${root.name}…`);
+  let n = 0;
+  for await (const e of walkDir(root)) { addFolderRow(e); n++; }
+  status(n ? `${root.name}: ${n} 3D file${n > 1 ? 's' : ''}` : `${root.name}: no supported files`);
+  if (!n) folderEl.innerHTML = '<div class="empty">no supported 3D files here</div>';
+};
+
+const thumbIO = ('IntersectionObserver' in window)
+  ? new IntersectionObserver(es => es.forEach(en => {
+      if (en.isIntersecting) {
+        thumbIO.unobserve(en.target);
+        thumbQueue.push(en.target._entry);
+        pumpThumbs();
+      }
+    }), { root: folderEl })
+  : null;
+
+function addFolderRow(e) {
+  const row = document.createElement('div');
+  row.className = 'frow';
+  row.title = e.path;
+  const img = document.createElement('img');
+  img.className = 'fthumb';
+  img.alt = e.ext;
+  const label = document.createElement('span');
+  label.className = 'fname';
+  label.textContent = e.path;
+  row.append(img, label);
+  row._entry = e;
+  row.onclick = async () => {
+    document.querySelectorAll('.frow.active').forEach(r => r.classList.remove('active'));
+    row.classList.add('active');
+    try {
+      clearModel();
+      const f = await e.handle.getFile();
+      await loadBytes(f.name, new Uint8Array(await f.arrayBuffer()));
+    } catch (err) { status(`${e.path}: ${err.message}`, true); }
+  };
+  e.img = img;
+  folderEl.append(row);
+  if (thumbIO) thumbIO.observe(row);
+  else { thumbQueue.push(e); pumpThumbs(); }
+}
+
+async function pumpThumbs() {
+  if (thumbBusy) return;
+  thumbBusy = true;
+  while (thumbQueue.length) {
+    const e = thumbQueue.shift();
+    try {
+      const url = await renderThumb(e);
+      if (url) e.img.src = url;
+      else extBadge(e);
+    } catch { extBadge(e); }
+  }
+  thumbBusy = false;
+}
+
+function extBadge(e) {
+  const d = document.createElement('div');
+  d.className = 'fthumb fext';
+  d.textContent = e.ext;
+  e.img.replaceWith(d);
+}
+
+// one shared offscreen renderer for all thumbnails
+let thumbR = null;
+function thumbRenderer() {
+  if (!thumbR) {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 96;
+    const r = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+    r.setSize(96, 96, false);
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x22252b);
+    const cam = new THREE.PerspectiveCamera(40, 1, 0.001, 1e9);
+    const key = new THREE.DirectionalLight(0xffffff, 1.5);
+    key.position.set(1, 1.4, 1.1);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.4);
+    fill.position.set(-1.2, -0.6, -0.8);
+    scene.add(key, fill, new THREE.AmbientLight(0xffffff, 0.5));
+    thumbR = { r, scene, cam };
+  }
+  return thumbR;
+}
+
+async function renderThumb(e) {
+  const f = await e.handle.getFile();
+  const ctx = { group: new THREE.Group(), parts: [], wantEdges: false };
+  await parseBytes(f.name, new Uint8Array(await f.arrayBuffer()), ctx);
+  if (!ctx.parts.length) return null;
+  const { r, scene, cam } = thumbRenderer();
+  scene.add(ctx.group);
+  const box = new THREE.Box3().setFromObject(ctx.group);
+  const c = box.getCenter(new THREE.Vector3());
+  const s = box.getSize(new THREE.Vector3()).length() || 1;
+  cam.position.copy(c).add(
+    new THREE.Vector3(1, 0.7, -1.2).normalize().multiplyScalar(s * 1.6));
+  cam.near = s / 100; cam.far = s * 20;
+  cam.updateProjectionMatrix();
+  r.render(scene, cam);
+  const url = r.domElement.toDataURL('image/png');
+  scene.remove(ctx.group);
+  ctx.group.traverse(o => {
+    o.geometry?.dispose?.();
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach(mm => mm?.dispose?.());
+  });
+  return url;
 }
 
 // ---------- export ----------
@@ -374,8 +571,11 @@ renderer.domElement.addEventListener('pointerdown', e => { if (state.measuring) 
 
 // ---------- ui ----------
 const togg = (id, fn) => document.getElementById(id).onclick = e => { fn(e.target); e.target.classList.toggle('active'); };
-document.getElementById('sampleBtn').onclick = loadSample;
-document.getElementById('fitBtn').onclick = frameModel;
+document.getElementById('sampleSel').onchange = e => {
+  if (e.target.value) loadSample(e.target.value);
+  e.target.value = '';
+};
+document.getElementById('fitBtn').onclick = () => frameModel();
 document.getElementById('upSel').onchange = e => setUp(e.target.value);
 togg('wireBtn', () => { state.wireframe = !state.wireframe; model.traverse(o => { if (o.isMesh) o.material.wireframe = state.wireframe; }); });
 const eb = document.getElementById('edgeBtn'); eb.classList.add('active');
@@ -391,12 +591,6 @@ togg('measureBtn', () => {
   markup.clear(); mPts.length = 0;
   status(state.measuring ? 'measure: click two points' : '');
 });
-togg('sectBtn', () => {
-  const on = document.getElementById('sectCtl').classList.toggle('show');
-  const planes = on ? [clipPlane] : [];
-  model.traverse(o => { if (o.material) o.material.clippingPlanes = planes; });
-});
-document.getElementById('sectSlider').oninput = e => { clipPlane.constant = +e.target.value; };
 
 document.getElementById('shotBtn').onclick = () => {
   renderer.render(scene, camera);
@@ -439,6 +633,11 @@ async function boot() {
 }
 
 // ---------- drag & drop / file input / resize ----------
+// keep the sidebar below the HUD when the toolbar wraps to two rows
+{
+  const hud = document.getElementById('hud'), side = document.getElementById('sidebar');
+  new ResizeObserver(() => { side.style.top = hud.offsetHeight + 'px'; }).observe(hud);
+}
 document.getElementById('fileInput').onchange = e => {
   clearModel();
   [...e.target.files].forEach(loadFile);

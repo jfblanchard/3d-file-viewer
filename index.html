@@ -32,10 +32,9 @@
   button:hover, .filebtn:hover, select:hover { background: #2a2e35; }
   button.active { border-color: #58a6ff; color: #58a6ff; }
   #fileInput { display: none; }
-  #sectCtl { display: none; align-items: center; gap: 6px; }
-  #sectCtl.show { display: inline-flex; }
+  #sampleSel { width: 8.5em; }
 
-  /* docked left sidebar — model tree */
+  /* docked left sidebar: folder browser + model tree */
   #sidebar {
     position: fixed; left: 0; top: 47px; bottom: 0; width: 230px;
     background: #17191e; border-right: 1px solid #262a31;
@@ -46,6 +45,30 @@
     font-size: 11px; font-weight: 600; text-transform: uppercase;
     letter-spacing: .7px; color: #7d8590;
     border-bottom: 1px solid #22252b;
+  }
+  #folder {
+    max-height: 38%; overflow-y: auto; padding: 4px 0;
+    border-bottom: 1px solid #22252b; flex-shrink: 0;
+  }
+  #folder .empty { padding: 12px 14px; color: #5d636e; font-size: 12px; }
+  .frow {
+    display: flex; gap: 8px; align-items: center;
+    padding: 4px 10px; cursor: pointer;
+  }
+  .frow:hover { background: #1e2126; }
+  .frow.active { background: #223047; }
+  .frow .fname {
+    font-size: 12px; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; direction: rtl; text-align: left;
+  }
+  .fthumb {
+    width: 40px; height: 40px; border-radius: 4px; flex-shrink: 0;
+    background: #22252b; object-fit: cover;
+  }
+  .fthumb.fext {
+    display: grid; place-items: center;
+    font-size: 9px; text-transform: uppercase; color: #7d8590;
+    letter-spacing: .5px;
   }
   #tree { flex: 1; overflow-y: auto; padding: 6px 0; }
   #tree label {
@@ -90,7 +113,13 @@
   <label class="filebtn" for="fileInput">Open…</label>
   <input id="fileInput" type="file" multiple
          accept=".step,.stp,.iges,.igs,.brep,.stl,.obj,.ply,.3mf,.gltf,.glb">
-  <button id="sampleBtn">Sample</button>
+  <button id="folderBtn" title="Browse a folder of 3D files">Folder…</button>
+  <select id="sampleSel" title="Sample models">
+    <option value="">Samples ▾</option>
+    <option value="jwst">James Webb Space Telescope</option>
+    <option value="voyager">Voyager probe</option>
+    <option value="toy_car">Toy car</option>
+  </select>
   <select id="exportSel">
     <option value="">Export ▾</option>
     <option value="glb">glTF (.glb)</option>
@@ -100,8 +129,6 @@
   </select>
   <span class="sep"></span>
   <button id="measureBtn">Measure</button>
-  <button id="sectBtn">Section</button>
-  <span id="sectCtl">z <input id="sectSlider" type="range" min="0" max="1" step="0.01" value="0.5" style="width:90px"></span>
   <button id="fitBtn">Fit</button>
   <select id="upSel" title="Up-axis convention">
     <option value="y" selected>Y up (3D)</option>
@@ -117,8 +144,10 @@
   <span id="status"></span>
 </div>
 <div id="sidebar">
+  <h3>Folder</h3>
+  <div id="folder"><div class="empty">use Folder… to scan a directory for 3D files</div></div>
   <h3>Model tree</h3>
-  <div id="tree"><div class="empty">no model — drop a file or open the sample</div></div>
+  <div id="tree"><div class="empty">no model: drop a file or pick a sample</div></div>
   <div class="foot" id="treeFoot"></div>
 </div>
 <div id="info">drop a file anywhere · step/iges/brep · stl/obj/ply/3mf/gltf</div>
@@ -140,6 +169,6 @@
   }
 }
 </script>
-<script type="module" src="viewer.js?v=2"></script>
+<script type="module" src="viewer.js?v=4"></script>
 </body>
 </html>

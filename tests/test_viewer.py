@@ -52,7 +52,8 @@ def page(browser, server):
     pg = ctx.new_page()
     pg.goto(server + "/")
     pg.wait_for_function(
-        "document.getElementById('status').textContent.includes('sample')")
+        "/^sample: .*✓/.test(document.getElementById('status').textContent)",
+        timeout=60_000)
     yield pg
     ctx.close()
 
@@ -69,6 +70,8 @@ def part_names(page):
 
 
 def load(page, path, timeout=90_000):
+    # clear first: the sample's status line already contains a ✓
+    page.evaluate("document.getElementById('status').textContent = ''")
     page.set_input_files("#fileInput", str(path))
     page.wait_for_function(
         "document.getElementById('status').textContent.includes('✓')",
@@ -76,8 +79,24 @@ def load(page, path, timeout=90_000):
 
 
 def test_sample_loads(page):
-    assert part_names(page) == ["base-plate", "boss", "dome"]
+    # default sample: NASA James Webb Space Telescope, credited in the status
+    assert len(part_names(page)) > 10
+    assert tri_count(page) > 50_000
+    assert "NASA" in page.text_content("#status")
+    assert "NASA" in page.text_content("#info")
+
+
+def test_sample_voyager_credit(page):
+    page.select_option("#sampleSel", "voyager")
+    page.wait_for_function(
+        "document.getElementById('status').textContent.includes('Voyager probe ✓')")
     assert tri_count(page) > 0
+    assert "NASA" in page.text_content("#status")
+    assert "NASA" in page.text_content("#info")
+
+
+def test_section_removed(page):
+    assert page.query_selector("#sectBtn") is None
 
 
 @pytest.mark.parametrize("fmt", MESH_FORMATS)

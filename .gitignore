@@ -3,3 +3,4 @@ tests/fixtures/cube.stp
 tests/fixtures/cube.igs
 tests/fixtures/cube.brep
 __pycache__/
+.wrangler/
