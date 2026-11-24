@@ -96,6 +96,20 @@ def test_sample_voyager_credit(page):
     assert "NASA" in page.text_content("#info")
 
 
+def test_wheel_zoom_normalized(page):
+    # wheel deltas are normalized to one fixed notch per 35 ms (see
+    # central-planning/tools/threejs-lessons.md): a single scroll must be
+    # a small step, not a jump halfway across the scene.
+    dist = ("window.__viewer.camera.position"
+            ".distanceTo(window.__viewer.controls.target)")
+    d0 = page.evaluate(dist)
+    page.mouse.move(600, 400)
+    page.mouse.wheel(0, -120)
+    page.wait_for_timeout(400)
+    d1 = page.evaluate(dist)
+    assert 0.9 < d1 / d0 < 1.0
+
+
 def test_section_removed(page):
     assert page.query_selector("#sectBtn") is None
 

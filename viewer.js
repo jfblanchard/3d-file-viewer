@@ -45,6 +45,30 @@ const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.01, 5
 camera.position.set(60, -70, 55);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
+controls.zoomSpeed = 0.35; // wheel zoom was far too fast; range clamped in frameModel
+
+// Mice and trackpads vary wildly in how they report wheel input: some send
+// one event per notch, smooth-scrolling mice send dozens, and high-resolution
+// wheels send huge deltas. OrbitControls turns every event into a zoom step,
+// so the same physical notch can zoom 2% or 50%. Instead, take over wheel
+// handling: one fixed-size zoom step per 35 ms, sign from the accumulated
+// delta. Fast scrolling still zooms quickly; a single notch always zooms a
+// little.
+let lastWheelStep = 0;
+let syntheticWheel = false;
+renderer.domElement.addEventListener('wheel', (e) => {
+  if (syntheticWheel) { syntheticWheel = false; return; } // let our own event through
+  e.preventDefault();
+  e.stopPropagation();
+  const now = performance.now();
+  if (now - lastWheelStep < 35) return;
+  lastWheelStep = now;
+  syntheticWheel = true;
+  renderer.domElement.dispatchEvent(new WheelEvent('wheel', {
+    deltaY: Math.sign(e.deltaY) * 150,
+    clientX: e.clientX, clientY: e.clientY, bubbles: true, cancelable: true,
+  }));
+}, { capture: true });
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0x30404f, 0.6));
 const dir = new THREE.DirectionalLight(0xffffff, 1.0);
@@ -246,6 +270,8 @@ function frameModel(view = null) {
   const c = box.getCenter(new THREE.Vector3());
   const s = box.getSize(new THREE.Vector3());
   modelScale = s.length();
+  controls.minDistance = modelScale * 0.05;   // can't dolly inside the model
+  controls.maxDistance = modelScale * 15;     // or out past the far plane
   axes.scale.setScalar(modelScale * 0.2 / 15);  // axes sized to the model
   controls.target.copy(c);
   const off = view ? view.clone() : state.up === 'z'
@@ -703,4 +729,4 @@ renderer.setAnimationLoop(loop);
 boot();
 
 // test hook — exact part/geometry state for the Playwright suite
-window.__viewer = { parts, state, lastFile };
+window.__viewer = { parts, state, lastFile, camera, controls };

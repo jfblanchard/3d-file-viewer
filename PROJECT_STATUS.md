@@ -2,12 +2,13 @@
 
 - **Generated:** 2026-11-24 (by project_status.py — git-derived, not hand-edited)
 - **Repo:** /mnt/data/projects/3d-file-viewer
-- **Git:** branch `main`, 9 commits, clean, ahead 1, behind 0
-- **Last commit:** `afbaac1` 2026-11-24 — Show loaded file name centered above the viewport
+- **Git:** branch `main`, 10 commits, clean, ahead 1, behind 0
+- **Last commit:** `26f4076` 2026-11-24 — Normalize wheel zoom: fixed-notch steps, zoomSpeed 0.35, model-scaled distance clamps
 
 ## RECENT COMMITS (newest first)
 
-- `afbaac1` (2026-11-24) Show loaded file name centered above the viewport
+- `26f4076` (2026-11-24) Normalize wheel zoom: fixed-notch steps, zoomSpeed 0.35, model-scaled distance clamps
+- `db60c11` (2026-11-24) Show loaded file name centered above the viewport
 - `6c7e9df` (2026-11-24) Collapsible prefix-grouped model tree, folder button in sidebar header, drop Measure
 - `088740a` (2026-11-24) Folder browser in sidebar; Voyager and ToyCar samples replace jet
 - `34aa110` (2026-11-07) README: no em-dashes
