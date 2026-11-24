@@ -2,12 +2,13 @@
 
 - **Generated:** 2026-11-24 (by project_status.py — git-derived, not hand-edited)
 - **Repo:** /mnt/data/projects/3d-file-viewer
-- **Git:** branch `main`, 7 commits, clean, ahead 1, behind 0
-- **Last commit:** `4f2760c` 2026-11-24 — Folder browser in sidebar; Voyager and ToyCar samples replace jet
+- **Git:** branch `main`, 8 commits, clean, ahead 1, behind 0
+- **Last commit:** `618fde4` 2026-11-24 — Collapsible prefix-grouped model tree, folder button in sidebar header, drop Measure
 
 ## RECENT COMMITS (newest first)
 
-- `4f2760c` (2026-11-24) Folder browser in sidebar; Voyager and ToyCar samples replace jet
+- `618fde4` (2026-11-24) Collapsible prefix-grouped model tree, folder button in sidebar header, drop Measure
+- `088740a` (2026-11-24) Folder browser in sidebar; Voyager and ToyCar samples replace jet
 - `34aa110` (2026-11-07) README: no em-dashes
 - `c78bd7e` (2026-11-07) Remove stray __pycache__, gitignore it
 - `df0f747` (2026-11-07) Playwright test suite (16 tests); fix occt-import-js UMD import, normalize part names

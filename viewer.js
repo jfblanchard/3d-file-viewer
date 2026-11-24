@@ -59,8 +59,6 @@ scene.add(axes);
 
 const model = new THREE.Group();
 scene.add(model);
-const markup = new THREE.Group();
-scene.add(markup);
 
 // ---------- orientation gizmo (lower-right corner viewport) ----------
 const gizmoScene = new THREE.Scene();
@@ -93,7 +91,7 @@ const baseMat = new THREE.MeshStandardMaterial({
 });
 const edgeMat = new THREE.LineBasicMaterial({ color: 0x16222c, transparent: true, opacity: 0.55 });
 
-const state = { wireframe: false, edges: true, measuring: false, up: 'y' };
+const state = { wireframe: false, edges: true, up: 'y' };
 
 function setUp(axis) {
   state.up = axis;
@@ -110,6 +108,9 @@ let credit = '';    // attribution line for bundled sample models
 const tree = document.getElementById('tree');
 const treeFoot = document.getElementById('treeFoot');
 
+// Parts are grouped into a collapsible tree by shared name tokens
+// (JWST-bracket1-fl + JWST-bracket1-sm group under JWST > bracket1).
+// Group checkboxes toggle every descendant part; indeterminate when mixed.
 function rebuildTree() {
   tree.innerHTML = '';
   if (!parts.length) {
@@ -117,33 +118,104 @@ function rebuildTree() {
     treeFoot.textContent = '';
     return;
   }
-  parts.forEach(p => {
-    const lab = document.createElement('label');
-    const cb = document.createElement('input');
-    cb.type = 'checkbox'; cb.checked = true;
-    cb.onchange = () => {
-      p.mesh.visible = cb.checked;
-      if (p.edges) p.edges.visible = cb.checked && state.edges;
-      lab.classList.toggle('hidden-part', !cb.checked);
-    };
-    const sw = document.createElement('span');
-    sw.className = 'swatch';
-    sw.style.background = '#' + p.color.getHexString();
-    const nm = document.createElement('span');
-    nm.textContent = p.name;
-    nm.title = p.name;
-    lab.append(cb, sw, nm);
-    tree.append(lab);
-  });
+  const items = parts.map(p => ({ p, tokens: p.name.split(/[-_.\s]+/).filter(Boolean) }));
+  tree.append(renderLevel(buildLevel(items, 0), parts.length > 12));
   const tri = parts.reduce((n, p) => n + (p.mesh.geometry.index
     ? p.mesh.geometry.index.count : p.mesh.geometry.attributes.position.count) / 3, 0);
   treeFoot.textContent = `${parts.length} part${parts.length > 1 ? 's' : ''} · ${(tri / 1000).toFixed(0)}k tris`;
 }
 
+function buildLevel(items, depth) {
+  const out = [], buckets = new Map();
+  for (const it of items) {
+    const k = it.tokens[depth];
+    if (k === undefined) out.push({ leaf: { ...it, depth } });
+    else {
+      if (!buckets.has(k)) buckets.set(k, []);
+      buckets.get(k).push(it);
+    }
+  }
+  for (const [label, b] of buckets)
+    out.push(b.length === 1 ? { leaf: { ...b[0], depth } } : { label, kids: buildLevel(b, depth + 1) });
+  return out;
+}
+
+const collectLeaves = n => n.leaf ? [n.leaf] : n.kids.flatMap(collectLeaves);
+
+function setPartVisible(p, v) {
+  p.mesh.visible = v;
+  if (p.edges) p.edges.visible = v && state.edges;
+}
+
+// walk up from a row, recomputing each ancestor group's checked/indeterminate
+function syncAncestorGroups(el) {
+  for (let d = el.closest('details'); d; d = d.parentElement.closest('details')) {
+    const boxes = [...d.querySelectorAll('label input')];
+    const cb = d.querySelector(':scope > summary input');
+    const on = boxes.filter(b => b.checked).length;
+    cb.checked = on === boxes.length;
+    cb.indeterminate = on > 0 && on < boxes.length;
+  }
+}
+
+function leafRow({ p, tokens, depth }) {
+  const lab = document.createElement('label');
+  const cb = document.createElement('input');
+  cb.type = 'checkbox'; cb.checked = p.mesh.visible !== false;
+  cb.onchange = () => {
+    setPartVisible(p, cb.checked);
+    lab.classList.toggle('hidden-part', !cb.checked);
+    syncAncestorGroups(lab);
+  };
+  const sw = document.createElement('span');
+  sw.className = 'swatch';
+  sw.style.background = '#' + p.color.getHexString();
+  const nm = document.createElement('span');
+  nm.textContent = depth === 0 ? p.name : (tokens.slice(depth).join('-') || p.name);
+  nm.title = p.name;
+  lab.append(cb, sw, nm);
+  return lab;
+}
+
+function renderLevel(nodes, collapse) {
+  const frag = document.createDocumentFragment();
+  for (const n of nodes) {
+    if (n.leaf) { frag.append(leafRow(n.leaf)); continue; }
+    const leaves = collectLeaves(n);
+    const det = document.createElement('details');
+    if (!collapse) det.open = true;
+    const sum = document.createElement('summary');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = leaves.every(l => l.p.mesh.visible !== false);
+    cb.indeterminate = !cb.checked && leaves.some(l => l.p.mesh.visible !== false);
+    cb.addEventListener('click', e => e.stopPropagation());  // don't toggle the details
+    cb.onchange = () => {
+      leaves.forEach(l => setPartVisible(l.p, cb.checked));
+      det.querySelectorAll('label').forEach(l => {
+        l.classList.toggle('hidden-part', !cb.checked);
+        l.querySelector('input').checked = cb.checked;
+      });
+      det.querySelectorAll('summary input').forEach(c => { c.checked = cb.checked; c.indeterminate = false; });
+      syncAncestorGroups(sum);
+    };
+    const nm = document.createElement('span');
+    nm.className = 'gname'; nm.textContent = n.label; nm.title = n.label;
+    const cnt = document.createElement('span');
+    cnt.className = 'gcount'; cnt.textContent = `(${leaves.length})`;
+    sum.append(cb, nm, cnt);
+    const kids = document.createElement('div');
+    kids.className = 'kids';
+    kids.append(renderLevel(n.kids, collapse));
+    det.append(sum, kids);
+    frag.append(det);
+  }
+  return frag;
+}
+
 function clearModel() {
   model.traverse(o => o.geometry?.dispose?.());
   model.clear();
-  markup.clear();
   parts.length = 0;
   lastFile = null;
   credit = '';
@@ -183,7 +255,7 @@ function frameModel(view = null) {
   camera.updateProjectionMatrix();
   document.getElementById('info').textContent =
     `drop a file anywhere · step/iges/brep · stl/obj/ply/3mf/gltf\n` +
-    `dims ${s.x.toFixed(1)} × ${s.y.toFixed(1)} × ${s.z.toFixed(1)} mm (assumed)` +
+    `dims ${s.x.toFixed(1)} × ${s.y.toFixed(1)} × ${s.z.toFixed(1)} (model units)` +
     (credit ? `\n${credit}` : '');
 }
 
@@ -523,52 +595,6 @@ document.getElementById('exportSel').onchange = e => {
   e.target.value = '';
 };
 
-// ---------- measure ----------
-const ray = new THREE.Raycaster();
-const ndc = new THREE.Vector2();
-const mPts = [];
-
-function textSprite(text) {
-  const cv = document.createElement('canvas');
-  const ctx = cv.getContext('2d');
-  ctx.font = '600 40px system-ui';
-  const w = Math.ceil(ctx.measureText(text).width) + 30;
-  cv.width = w; cv.height = 56;
-  const c2 = cv.getContext('2d');
-  c2.fillStyle = 'rgba(20,22,26,.85)'; c2.fillRect(0, 0, w, 56);
-  c2.font = '600 40px system-ui'; c2.fillStyle = '#ffd479';
-  c2.fillText(text, 15, 42);
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false }));
-  sp.scale.set(w * modelScale / 2500, 56 * modelScale / 2500, 1);
-  return sp;
-}
-
-function onMeasureClick(e) {
-  ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
-  ray.setFromCamera(ndc, camera);
-  const hit = ray.intersectObject(model, true)[0];
-  if (!hit) return;
-  const r = modelScale / 250;
-  const dot = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12),
-    new THREE.MeshBasicMaterial({ color: 0xffd479 }));
-  dot.position.copy(hit.point);
-  markup.add(dot);
-  mPts.push(hit.point.clone());
-  if (mPts.length === 2) {
-    const [a, b] = mPts;
-    const d = a.distanceTo(b);
-    markup.add(new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([a, b]),
-      new THREE.LineBasicMaterial({ color: 0xffd479 })));
-    const lbl = textSprite(`${d.toFixed(2)} mm`);
-    lbl.position.copy(a).add(b).multiplyScalar(0.5).add(new THREE.Vector3(0, 0, r * 6));
-    markup.add(lbl);
-    status(`distance ${d.toFixed(2)} mm`);
-    mPts.length = 0;
-  }
-}
-renderer.domElement.addEventListener('pointerdown', e => { if (state.measuring) onMeasureClick(e); });
-
 // ---------- ui ----------
 const togg = (id, fn) => document.getElementById(id).onclick = e => { fn(e.target); e.target.classList.toggle('active'); };
 document.getElementById('sampleSel').onchange = e => {
@@ -585,13 +611,6 @@ togg('edgeBtn', () => {
 });
 const gb = document.getElementById('gridBtn'); gb.classList.add('active');
 togg('gridBtn', () => { grid.visible = !grid.visible; axes.visible = grid.visible; });
-togg('measureBtn', () => {
-  state.measuring = !state.measuring;
-  controls.enableRotate = !state.measuring;
-  markup.clear(); mPts.length = 0;
-  status(state.measuring ? 'measure: click two points' : '');
-});
-
 document.getElementById('shotBtn').onclick = () => {
   renderer.render(scene, camera);
   renderer.domElement.toBlob(b => dl(b, 'view.png'));

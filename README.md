@@ -21,13 +21,14 @@ what is in them."
 ## Features
 
 - Orbit / zoom / pan, wireframe, edge overlay, grid toggle
-- **Model tree**: docked left sidebar, per-part visibility with color
-  swatches (STEP part colors come through)
+- **Model tree**: docked left sidebar, grouped into a collapsible tree
+  by shared name prefixes, with per-part or per-group visibility and
+  color swatches (STEP part colors come through)
 - **Orientation gizmo**: XYZ triad in the lower-right, tracks the camera
-- **Measure**: click two points, get a distance readout
-- **Folder browsing**: `Folder…` opens a local directory, lists every
-  supported file inside with a rendered thumbnail, click to load
-  (Chromium only; uses the File System Access API)
+- **Folder browsing**: `Open folder…` in the sidebar scans a local
+  directory, lists every supported file inside with a rendered
+  thumbnail, click to load (Chromium only; uses the File System
+  Access API)
 - **Samples**: the James Webb Space Telescope (default), the Voyager
   probe, and a toy car
 - **Convert / export**: any loaded model downloads as GLB, STL, OBJ,

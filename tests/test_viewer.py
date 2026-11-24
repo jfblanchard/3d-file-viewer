@@ -99,6 +99,23 @@ def test_section_removed(page):
     assert page.query_selector("#sectBtn") is None
 
 
+def test_tree_groups_prefix(page):
+    # JWST has ~36 parts sharing the JWST- prefix: they should collapse
+    # under a group node, and its checkbox should toggle all members.
+    groups = page.query_selector_all("#tree details")
+    assert len(groups) >= 1
+    jwst = next(g for g in groups if "JWST" in g.query_selector("summary").text_content())
+    assert not jwst.get_attribute("open")  # big model: groups start closed
+    gcb = jwst.query_selector("summary input")
+    gcb.click()
+    # every member leaf checkbox and every mesh follows the group toggle
+    leaves = jwst.query_selector_all("label input")
+    assert len(leaves) > 10
+    assert all(not l.is_checked() for l in leaves)
+    visible = page.evaluate("window.__viewer.parts.filter(p=>p.mesh.visible).length")
+    assert visible < len(part_names(page))
+
+
 @pytest.mark.parametrize("fmt", MESH_FORMATS)
 def test_load_mesh_format(page, fmt):
     load(page, FIX / f"cube.{fmt}")
