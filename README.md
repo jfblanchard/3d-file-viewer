@@ -1,17 +1,11 @@
 # 3d-file-viewer
 
-General-purpose 3D files in the browser. No build step, no server, no
-uploads; static files only, everything stays client-side.
-
-It is two things at once: a viewer for poking through 3D files, and a
-format converter (drop a STEP file, download a glTF). Built for the
-common case of "someone sent me a CAD export and I just want to see
-what is in it."
+This is a simple browser app that lets you view 3D files, and save between a few different formats.  
 
 ![The viewer showing NASA's Voyager probe, with the collapsible part
 tree on the left](docs/screenshot.png)
 
-## Formats
+## Formats Supported
 
 | Format | Load | Save | Notes |
 |---|---|---|---|
@@ -27,8 +21,7 @@ tree on the left](docs/screenshot.png)
 B-rep formats are parsed client-side by
 [occt-import-js](https://github.com/kovacsv/occt-import-js) (the real
 OpenCascade kernel compiled to WebAssembly); the mesh formats use
-three.js loaders. Saving a loaded file in another format is how this
-doubles as a converter.
+three.js loaders.You can use this as a 3D format converter by saving a loaded file in another format.
 
 ## Using it
 
