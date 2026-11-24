@@ -2,6 +2,9 @@
 
 This is a simple browser app that lets you view 3D files, and save between a few different formats.  
 
+**[Try it live](https://3d-file-viewer.pages.dev)**: drop a STEP, STL,
+or glTF file onto the page and it opens entirely in your browser.
+
 ![The viewer showing NASA's Voyager probe, with the collapsible part
 tree on the left](docs/screenshot.png)
 
